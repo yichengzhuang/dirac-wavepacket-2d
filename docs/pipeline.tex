@@ -1,0 +1,195 @@
+\documentclass[11pt,a4paper]{article}
+\usepackage{amsmath,amssymb}
+\usepackage{booktabs}
+\usepackage{geometry}
+\geometry{margin=2cm}
+\usepackage[dvipsnames]{xcolor}
+\usepackage{enumitem}
+
+\newcommand{\vb}[1]{\mathbf{#1}}
+
+\pagestyle{empty}
+
+\title{\large\bfseries Computational Pipeline: LDOS and Mode Extraction\\
+in 2D Dirac Billiards}
+\author{}
+\date{}
+
+\begin{document}
+\maketitle
+\thispagestyle{empty}
+\vspace{-1.5em}
+
+%======================================================================
+\section*{Overview}
+%======================================================================
+
+\begin{center}
+\fbox{\parbox{0.92\textwidth}{\centering
+\textbf{Propagation} $\;\to\;$
+$\begin{cases}
+  \text{snapshots } \psi(\vb{r},t_k) \;\to\; \textbf{LDOS}
+    \text{ (Fourier transform, no poles needed)} \\[2pt]
+  C_R(t) \;\to\; \textbf{Matrix Pencil} \text{ (poles } \omega_n\text{)}
+    \;\to\; \textbf{Mode extraction } \phi_n(\vb{r})
+\end{cases}$
+}}
+\end{center}
+
+Input: 2D Dirac equation with scalar confining potential $V(\vb{r})$,
+complex absorbing potential (CAP), two-component spinor
+$\psi = (\psi_A, \psi_B)^T$ on an $n \times n$ grid ($D = 2n^2$).
+
+%======================================================================
+\section*{Stage 1: Split-operator propagation}
+%======================================================================
+
+Gaussian wavepacket $\psi_0(\vb{r})$ at momentum $\vb{k}_0$,
+propagated via split-operator:
+\begin{equation*}
+  \psi(t\!+\!\delta t) = e^{-iV\delta t/2}\;
+  \mathcal{F}^{-1}\!\Big[e^{-iH_k \delta t}\;
+  \mathcal{F}\big[e^{-iV\delta t/2}\,\psi(t)\big]\Big].
+\end{equation*}
+
+\textbf{Outputs} (from a single propagation):
+\begin{itemize}[nosep,leftmargin=1.5em]
+  \item Snapshots: $\psi(\vb{r}, t_k)$ at $N_s$ times
+        ($\Delta t_\text{snap} = 0.1$, $T = 150$, $N_s = 1501$).
+  \item Scalar autocorrelation:
+        $C_R(t) = \langle\psi_0|\chi_R|\psi(t)\rangle$
+        at finer intervals ($\Delta t_\text{corr} = 0.1$).
+\end{itemize}
+
+%======================================================================
+\section*{Stage 2: Pole extraction via matrix pencil}
+%======================================================================
+
+From $C_R(t)$, extract complex frequencies
+$\omega_n = E_n - i\Gamma_n/2$:
+
+\begin{enumerate}[nosep,leftmargin=1.5em]
+  \item Hankel matrices:
+        $Y_0[i,j] = C_R[i+j]$, \;
+        $Y_1[i,j] = C_R[i+j+1]$, \; size $L \times L$.
+  \item SVD-regularized generalized eigenvalue problem:
+        $Y_0^{-1} Y_1 \to z_n$.
+  \item $\omega_n = \frac{i}{\Delta t_\text{corr}} \ln z_n$.
+        Keep $\Gamma_n > 0$, $|z_n| < 1$.
+  \item Amplitude fit: $C_R(t) \approx \sum_n a_n\, e^{-i\omega_n t}$
+        $\to$ sort by $|a_n|$.
+\end{enumerate}
+
+Output: $\{\omega_n, a_n\}_{n=1}^N$
+($\sim$5--8 poles in $[2, 6]$, accuracy $|\Delta E| < 0.01$,
+$\Delta\Gamma/\Gamma < 5\%$).
+
+%======================================================================
+\section*{Stage 3a: LDOS (spectral density map)}
+%======================================================================
+
+For $M$ propagations (different $\vb{k}_0$ directions and
+launch positions), compute real-frequency Fourier transform:
+\begin{equation*}
+  \rho^{(\alpha)}(\vb{r}, E)
+  = \sum_k e^{iE t_k}\, \chi_R(\vb{r})\, \psi^{(\alpha)}(\vb{r}, t_k),
+  \qquad
+  \text{LDOS}(\vb{r}, E)
+  = \frac{1}{M} \sum_{\alpha=1}^{M}
+    \big[|\rho_A^{(\alpha)}|^2 + |\rho_B^{(\alpha)}|^2\big].
+\end{equation*}
+
+\begin{itemize}[nosep,leftmargin=1.5em]
+  \item $M = 48$ (8 directions $\times$ 6 positions)
+        $\to$ $C_{2v}$ error $< 0.05\%$.
+  \item Vectorized via matrix multiply:
+        phases $(n_E \times N_s)$ $\times$ snapshots
+        $(N_s \times n^2)$.
+  \item Output: $\text{LDOS}(E, \vb{r})$ at $n_E$ energies ---
+        all modes summed incoherently with Lorentzian weights.
+\end{itemize}
+
+%======================================================================
+\section*{Stage 3b: Spatial mode extraction}
+%======================================================================
+
+Given poles $\{\omega_n\}$ from Stage~2, extract individual
+spatial modes $\phi_n(\vb{r})$ from a \emph{single} propagation.
+Two methods are available:
+
+\medskip
+\noindent\textbf{Method A: Time filtering (TF).}\quad
+Per-pixel Fourier filter at each known frequency:
+\begin{equation*}
+  \phi_n^\text{TF}(\vb{r}) \propto \sum_k w_k \, e^{+i\omega_n t_k}
+  \, \chi_R(\vb{r}) \, \psi(\vb{r}, t_k),
+\end{equation*}
+where $w_k$ is a Hann window.
+Each spatial point is processed independently ($D = 131{,}072$
+independent 1D filters). Cost: $< 1$\,s.
+
+\medskip
+\noindent\textbf{Method B: Fixed-pole SVD extraction.}\quad
+Couples all spatial points via SVD subspace projection:
+\begin{enumerate}[nosep,leftmargin=1.5em]
+  \item Snapshot matrix $X \in \mathbb{C}^{D \times N_s}$, column $k$ =
+        masked spinor $[\psi_A \cdot \chi_R;\; \psi_B \cdot \chi_R]$
+        flattened.
+  \item Shift matrices $X_0$, $X_1$. Truncated SVD:
+        $X_0 = U_r \Sigma_r V_r^\dagger$ (rank $r \approx 2N$).
+  \item Reduced dynamics:
+        $\tilde{A} = U_r^\dagger X_1 V_r \Sigma_r^{-1}$
+        \quad ($r \times r$).
+  \item Fixed-pole null-space search:
+        $\lambda_n = e^{-i\omega_n \Delta t_\text{snap}}$, \;
+        $\vb{w}_n = \arg\min_{\|\vb{w}\|=1}
+        \|(\tilde{A} - \lambda_n I)\vb{w}\|$.
+  \item Reconstruct:
+        $\phi_n = X_1 V_r \Sigma_r^{-1} \vb{w}_n$
+        $\to$ normalize inside mask.
+\end{enumerate}
+Cost: $\sim$40\,s (dominated by SVD).
+
+\medskip
+\noindent\textbf{Comparison:}
+
+\begin{center}
+\begin{tabular}{lccc}
+\toprule
+& TF & SVD (Method B) & Improvement \\
+\midrule
+$m=1$ avg $C_{2v,x}$ & 0.131 & \textbf{0.044} & $3\times$ better \\
+$m=0$ avg $C_{2v,x}$ & 0.576 & \textbf{0.304} & moderate \\
+Cost & $< 1$\,s & $\sim 40$\,s & \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+Method~B gives significantly better $C_{2v}$ symmetry
+(the only reliable intrinsic quality metric) through spatial noise
+suppression via SVD. Method~B matters when quantitative density comparison is needed.
+
+Both methods hit the same physical wall: broad modes
+($\Gamma > 0.3$, $\tau < T_\text{beat}$) have $C_{2v} > 50\%$
+regardless of method.
+
+%======================================================================
+\section*{Summary}
+%======================================================================
+
+\begin{center}
+\begin{tabular}{llll}
+\toprule
+Output & Method & From & Reliability \\
+\midrule
+$(E_n, \Gamma_n)$ & Matrix pencil & $C_R(t)$ (1D) &
+  Accurate at all $\Gamma/\Delta E$ \\
+LDOS$(\vb{r}, E)$ & Fourier + averaging &
+  $M$ propagations & $C_{2v} < 0.05\%$ ($M = 48$) \\
+$\phi_n(\vb{r})$ & Fixed-pole + SVD &
+  1 propagation & $C_{2v} \sim 5\%$ (narrow), $50\%$+ (broad) \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\end{document}

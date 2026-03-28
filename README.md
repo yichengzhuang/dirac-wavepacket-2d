@@ -62,19 +62,57 @@ Propagation ──→     │
 | `ldos_spectrum.png` | Integrated LDOS vs energy |
 | `ldos_and_modes.png` | Spatial maps: LDOS / TF mode / SVD mode |
 
+## Performance
+
+### GPU acceleration
+
+The propagation kernel (split-operator + FFT) runs on GPU via PyTorch
+when available.  The backend is selected automatically at startup:
+
+| Backend | Hardware | Typical speedup | Selection |
+|---------|----------|----------------|-----------|
+| `torch_cuda` | NVIDIA GPU (A100, V100, ...) | **20×** | Auto if CUDA available |
+| `torch_mps` | Apple Silicon (M1/M2/M3) | ~5× | Auto if MPS available |
+| `numpy` | CPU (OpenBLAS/MKL) | 1× (baseline) | Fallback |
+
+Override with `--backend torch_cuda` or `--backend numpy`.
+
+### Vectorised LDOS computation
+
+The LDOS Fourier transform uses matrix multiplication instead of
+Python loops:
+
+```
+phases @ snap_A   →   (n_E, Ns) @ (Ns, N_sp)   →   (n_E, N_sp)
+```
+
+This replaces `n_E × Ns` Python iterations with a single BLAS
+`gemm` call.  Verified to match the loop version to machine
+precision (relative error < 3×10⁻¹⁵).  Speedup: ~30× on CPU.
+
+### Typical timings (n=256, T=150)
+
+| Operation | CPU (8 cores) | GPU (A100) |
+|-----------|:------------:|:----------:|
+| Single propagation (15k steps) | 120 s | 6 s |
+| LDOS computation (300 energies) | 0.6 s | — |
+| Matrix pencil pole extraction | 0.1 s | — |
+| Fixed-pole SVD mode extraction | 40 s | — |
+| **Full pipeline (8 directions)** | **~17 min** | **~1 min** |
+
 ## Code structure
 
 ```
-├── run.py                  pipeline driver
-├── spectral.py             matrix pencil, LDOS, time filtering
+├── run.py                  pipeline driver (propagation + LDOS + poles + modes)
+├── spectral.py             matrix pencil, LDOS (matmul), time filtering
 ├── potentials_2d.py        confining potentials and analysis masks
 ├── accel/
 │   ├── __init__.py          backend auto-detection (CUDA > MPS > CPU)
 │   ├── backend.py           abstract backend interface
-│   ├── backend_numpy.py     CPU backend (NumPy/SciPy)
-│   ├── backend_torch.py     Apple GPU backend (MPS)
-│   ├── backend_torch_cuda.py  NVIDIA GPU backend (CUDA)
-│   └── dynamics_accel.py    grid, wavepacket, split-operator propagation
+│   ├── backend_numpy.py     CPU backend (NumPy/SciPy FFT)
+│   ├── backend_torch.py     Apple GPU backend (PyTorch MPS)
+│   ├── backend_torch_cuda.py  NVIDIA GPU backend (PyTorch CUDA)
+│   └── dynamics_accel.py    grid, wavepacket, CAP, split-operator propagation
 ├── examples/                example run scripts
 ├── requirements.txt
 └── LICENSE
@@ -87,11 +125,14 @@ Run `python run.py --help` for a full list. Key options:
 | Parameter | Default | Description |
 |-----------|---------|-------------|
 | `--backend` | auto | `torch_cuda`, `torch_mps`, `numpy` |
-| `--n` | 256 | Spatial grid size |
+| `--n` | 256 | Spatial grid size (power of 2 for FFT) |
 | `--mass` | 0.0 | Dirac mass (0 = massless, Klein tunnelling) |
 | `--potential` | harmonic_ellipse | Potential geometry |
 | `--n_prop` | 8 | Propagation directions for LDOS averaging |
-| `--n_steps` | 15000 | Time steps (T = n_steps * dt) |
+| `--n_steps` | 15000 | Time steps (T = n_steps × dt) |
+| `--save_every` | 10 | Snapshot cadence (Nyquist: E_max < π/(save_every × dt)) |
+| `--n_E` | 300 | Number of energy points for LDOS |
+| `--n_modes` | 5 | Number of modes to extract |
 
 Available potentials: `harmonic_ellipse`, `harmonic_circle`,
 `soft_ellipse`, `soft_circle`, `soft_stadium`,
@@ -99,7 +140,9 @@ Available potentials: `harmonic_ellipse`, `harmonic_circle`,
 
 ## Units
 
-Natural units: hbar = v_F = 1. All energies and momenta are dimensionless.
+Natural units: ℏ = v_F = 1. All energies and momenta are dimensionless.
+For graphene quantum dots: the default parameters (a=2, k_harm=3)
+correspond to a ~50 nm dot with E ~ 63 meV, Γ ~ 16 meV.
 
 ## License
 

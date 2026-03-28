@@ -103,17 +103,41 @@ precision (relative error < 3×10⁻¹⁵).  Speedup: ~30× on CPU.
 ## Code structure
 
 ```
-├── run.py                  pipeline driver (propagation + LDOS + poles + modes)
-├── spectral.py             matrix pencil, LDOS (matmul), time filtering
+├── run.py                  pipeline driver (quick start entry point)
+├── spectral.py             matrix pencil, LDOS, time filtering
 ├── potentials_2d.py        confining potentials and analysis masks
-├── accel/
-│   ├── __init__.py          backend auto-detection (CUDA > MPS > CPU)
-│   ├── backend.py           abstract backend interface
+├── accel/                  GPU/CPU backend abstraction
+│   ├── __init__.py          auto-detection (CUDA > MPS > CPU)
+│   ├── backend.py           abstract interface
 │   ├── backend_numpy.py     CPU backend (NumPy/SciPy FFT)
 │   ├── backend_torch.py     Apple GPU backend (PyTorch MPS)
 │   ├── backend_torch_cuda.py  NVIDIA GPU backend (PyTorch CUDA)
 │   └── dynamics_accel.py    grid, wavepacket, CAP, split-operator propagation
-├── examples/                example run scripts
+│
+├── core/                   full pipeline with visualization and units
+│   ├── main.py              main driver (parameter configuration)
+│   ├── dynamics.py          CPU propagation module
+│   ├── spectral.py          spectral analysis
+│   ├── visualization.py     plotting and animation
+│   ├── units.py             natural ↔ physical unit conversion
+│   └── accel/               GPU-accelerated propagation
+│
+├── experiments/            all exploratory and validation scripts
+│   ├── dmd_*.py             Dynamic Mode Decomposition attempts
+│   ├── fdm_*.py             Filter Diagonalization Method
+│   ├── fixed_pole_*.py      fixed-pole SVD mode reconstruction
+│   ├── ldos_*.py            LDOS studies (shapes, averaging, scars)
+│   ├── study_*.py           parameter convergence studies
+│   ├── cap_*.py             CAP convergence and validation
+│   ├── kramers_test.py      Kramers density identity verification
+│   ├── exact_diag_test.py   exact diagonalization benchmark
+│   ├── method_comparison.py systematic comparison of all methods
+│   └── submit_*.sh          SLURM submission scripts
+│
+├── docs/                   method notes and research summary
+│   ├── pipeline.pdf         algorithm description (2 pages)
+│   └── summary.pdf          physics background and storyline
+├── examples/               example run scripts
 ├── requirements.txt
 └── LICENSE
 ```

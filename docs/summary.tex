@@ -1,0 +1,827 @@
+\documentclass[11pt,a4paper]{article}
+
+\usepackage{amsmath,amssymb,amsthm}
+\usepackage{booktabs}
+\usepackage{graphicx}
+\usepackage{geometry}
+\geometry{margin=2.2cm}
+\usepackage[dvipsnames]{xcolor}
+\usepackage{hyperref}
+\hypersetup{colorlinks=true,linkcolor=blue}
+\usepackage{fancyhdr}
+\usepackage{caption}
+
+\newcommand{\vb}[1]{\mathbf{#1}}
+\newcommand{\avg}[1]{\langle #1 \rangle}
+\newtheorem{theorem}{Theorem}
+
+\pagestyle{fancy}
+\fancyhf{}
+\fancyhead[L]{\small Paper Storyline Draft}
+\fancyhead[R]{\small\thepage}
+
+\title{\Large\bfseries Time-Domain Local Spectroscopy of Open Dirac Cavities:\\
+From Leakage Dynamics to STM-Relevant Spatial Maps}
+\author{[Draft --- not for distribution]}
+\date{2026-03-28}
+
+\begin{document}
+\maketitle
+
+\begin{abstract}
+We present a time-domain approach for reconstructing the local density
+of states (LDOS) in geometrically open massless Dirac cavities, where
+conventional eigenstate-based methods fail due to strongly overlapping
+resonances.  By propagating spinor wavepackets in confining potentials
+with complex absorbing boundaries, we extract complex resonance
+frequencies via matrix-pencil harmonic inversion and reconstruct
+STM-relevant spatial maps through multi-propagation LDOS averaging.
+We demonstrate that in the overlapping-resonance regime
+($\Gamma/\Delta E \sim 1$, enforced by Klein tunnelling), individual
+quasi-eigenstate reconstruction is fundamentally ill-posed---not due
+to algorithmic limitations, but as a physical consequence of the
+energy--time uncertainty relation.  In contrast, the direction-averaged
+LDOS remains robust, converging to $C_{2v}$ symmetry errors below
+$0.05\%$ with $M = 48$ propagations.  Results are presented for
+harmonic and soft-wall ellipses, circles, and Bunimovich stadia,
+providing direct theoretical predictions for scanning tunnelling
+spectroscopy of graphene quantum dots.
+\end{abstract}
+
+\tableofcontents
+\vspace{1em}
+
+%======================================================================
+\section{Introduction}
+\label{sec:intro}
+%======================================================================
+
+% --- Step 1: Physical target = local spectral structure ---
+
+The local electronic structure of confined Dirac fermions---how
+geometry, confinement potential, and wave dynamics shape the
+energy-resolved spatial distribution of states---is a central
+question for graphene-based nanostructures.
+Scanning tunnelling microscopy (STM) provides direct access to
+$dI/dV \propto \text{LDOS}(E, \vb{r})$, making the local density of
+states the primary observable linking theory and experiment.
+Equally interesting from a fundamental perspective is the nature of
+individual quasi-bound states: their spatial wavefunctions, symmetry
+properties, and nodal structure carry information about the underlying
+classical dynamics (regular vs.\ chaotic) and quantum interference.
+
+% --- Step 2: Bounded systems are well understood ---
+
+For closed or nearly closed billiards---tight-binding models with
+hard-wall boundaries, or circular geometries admitting analytical
+solutions---computing eigenstates and LDOS is standard practice.
+Methods such as kernel polynomial expansion (KPM), recursive
+Green's functions, or direct diagonalisation of tight-binding
+Hamiltonians have been successfully applied to graphene nanostructures
+[refs].  These approaches naturally produce both individual
+eigenstates and the LDOS derived from them.
+
+% --- Step 3: Open systems are harder, and eigenstate language
+%     becomes less natural ---
+
+The situation changes qualitatively for \emph{open} Dirac cavities
+with smooth electrostatic confinement, where carriers can tunnel
+through the potential barrier.  For massless Dirac fermions, Klein
+tunnelling guarantees unit transmission at normal incidence through
+\emph{any} barrier, leading to resonance widths $\Gamma$ bounded
+from below by a power law rather than an exponential.  Combined with
+the Weyl-law level spacing $\Delta E \propto 1/(EA)$, this gives
+\begin{equation}
+  \Gamma / \Delta E \sim O(1)
+  \quad \text{at all energies, independent of system size,}
+\end{equation}
+placing the system generically in the \emph{overlapping-resonance
+regime}.  In this regime, individual quasi-bound states---while
+mathematically well-defined as poles of the scattering matrix---become
+increasingly difficult to isolate from finite-time dynamical data,
+because neighbouring resonances are temporally indistinguishable
+within their own lifetimes.
+
+This does not mean individual states are uninteresting.  On the
+contrary, understanding \emph{which} spectral information is reliably
+extractable, and which is not, is itself a physically significant
+question.
+
+% --- Step 4: What has been done (by capability, not category) ---
+
+Previous theoretical work on relativistic billiards has addressed
+eigenstate statistics and scarring in closed systems
+[refs], analytical solutions for separable geometries [refs],
+and tight-binding simulations of specific nanostructures [refs].
+On the numerical spectroscopy side, time-domain wavepacket
+propagation combined with harmonic inversion (matrix pencil,
+filter diagonalisation) has been used to extract complex resonance
+frequencies from autocorrelation signals in molecular and atomic
+physics [Mandelshtam \& Taylor 1997; Wall \& Neuhauser 1995],
+and more recently in mesoscopic systems [refs].
+Dynamic mode decomposition (DMD) and proper orthogonal
+decomposition (POD) provide complementary data-driven approaches
+that operate on full spatial snapshots rather than scalar signals
+[Schmid 2010; refs].
+These methods establish that \emph{poles} can be reliably obtained
+from short-time dynamics.  However, the question of spatial mode
+reconstruction---and its fundamental limitations in the
+overlapping-resonance regime characteristic of massless Dirac
+systems---has not been systematically addressed.
+
+% --- Step 5: Time-domain as physics, not just technique ---
+
+More broadly, our problem can be viewed as one of resonance
+spectroscopy in an open wave system.  In such systems, the
+physically relevant spectral structures are not always best
+organised in terms of isolated eigenstates, but often appear more
+naturally in the language of finite-lifetime response.  Widths are
+decay rates, leakage is dynamical, and spectral weight is revealed
+through time-dependent response.  This makes the time domain not
+merely a convenient numerical route, but a physically natural
+framework for open Dirac cavities---conceptually aligned with
+emerging ultrafast local spectroscopy techniques [refs].
+
+% --- Step 6: What this paper does ---
+
+In this work, we establish a time-domain workflow for computing
+STM-relevant LDOS maps in massless Dirac billiards of arbitrary
+geometry, and systematically investigate the limits of individual
+mode extraction.  Our main findings are:
+
+\begin{enumerate}
+  \item \textbf{Complex resonance frequencies} $(E_n, \Gamma_n)$
+        are robustly extracted via matrix-pencil harmonic inversion,
+        validated by CAP convergence tests ($<3\%$ variation across
+        parameter ranges).
+
+  \item \textbf{Individual mode reconstruction} is possible for
+        narrow resonances ($\Gamma/\Delta E \lesssim 0.4$) using
+        multiple extraction methods (time filtering, FDM, DMD), but
+        progressively fails as $\Gamma/\Delta E \to 1$.
+        We quantify this transition and trace it to the energy--time
+        uncertainty relation, demonstrating that it is a physical limit
+        independent of the extraction algorithm.
+
+  \item \textbf{Multi-propagation LDOS averaging} ($M = 48$
+        directions $\times$ positions) produces spatial maps with
+        $C_{2v}$ symmetry errors below $0.05\%$ without artificial
+        symmetrisation, providing direct theoretical predictions for
+        STM experiments.
+
+  \item \textbf{Shape dependence}: results for harmonic and soft-wall
+        ellipses, circles, and Bunimovich stadia reveal the interplay
+        between integrability, chaos, and Klein tunnelling in
+        determining the spatial spectral structure.
+\end{enumerate}
+
+%======================================================================
+\section{System and numerical method}
+\label{sec:method}
+%======================================================================
+
+\subsection{2D Dirac equation with confinement}
+
+We consider the 2D massless Dirac Hamiltonian with a scalar confining potential:
+\begin{equation}
+  H = v_F \begin{pmatrix} 0 & p_x - ip_y \\ p_x + ip_y & 0 \end{pmatrix}
+      + V(\vb{r})\,\mathbb{I},
+  \label{eq:hamiltonian}
+\end{equation}
+where $v_F$ is the Fermi velocity and $V(\vb{r})$ provides spatial confinement.
+We work in natural units $\hbar = v_F = 1$.
+
+The wavefunction is a two-component spinor $\psi = (\psi_A, \psi_B)^T$ representing
+the two sublattice components.  The probability density is
+$\rho(\vb{r}) = |\psi_A(\vb{r})|^2 + |\psi_B(\vb{r})|^2$.
+
+\subsection{Confining potentials}
+
+We study three geometries:
+
+\paragraph{Harmonic ellipse.}
+$V(\vb{r}) = \tfrac{1}{2}k_\text{harm}\bigl[(x/a)^2 + (y/b)^2\bigr]$
+with $k_\text{harm} = 3$, $a = 2$, $b = 1.2$.  The elliptical shape breaks
+rotational symmetry while preserving $C_{2v}$.
+
+\paragraph{Soft-wall stadium.}
+Following Ref.~[XX], we use the bathtub potential
+\begin{equation}
+  V(\vb{r}) = \frac{V_0}{1 + \lambda\exp[\mu(1 - f(\vb{r})^2)]},
+  \label{eq:softwall}
+\end{equation}
+where $f^2 = [\max(|x|-a_\text{half},0)^2 + y^2]/b^2$ is the stadium form function,
+with $V_0 = 70$, $\lambda = 25$, $\mu = 5$, $a_\text{half} = 1$, $b = 1$.
+The interior is nearly flat ($V \approx 0.02$) with smooth walls of width $\sim 1/\mu$.
+
+\paragraph{Harmonic circle.}
+$V(\vb{r}) = \tfrac{1}{2}k_\text{harm}(r/r_0)^2$ with $r_0 = 1.55$, chosen to
+match the ellipse area ($\pi r_0^2 \approx \pi a b$).
+
+\subsection{Split-operator propagation}
+
+Time evolution uses the split-operator method:
+\begin{equation}
+  \psi(t + \Delta t) \approx
+  e^{-iV\Delta t/2}\, e^{-i T_D \Delta t}\, e^{-iV\Delta t/2}\, \psi(t),
+\end{equation}
+where $T_D = v_F(\sigma_x p_x + \sigma_y p_y)$ is the kinetic operator, applied
+in Fourier space via FFT.  The spatial grid is $256 \times 256$ with $L = 10$,
+$\Delta t = 0.01$, $T_\text{max} = 100$.
+
+\subsection{Complex absorbing potential (CAP)}
+
+Open boundaries are modelled by a radial CAP:
+\begin{equation}
+  W(r) = W_0 \left(\frac{r - r_\text{cap}}{R_\text{max} - r_\text{cap}}\right)^p
+  \quad \text{for } r > r_\text{cap},
+\end{equation}
+with $W_0 = 10$, $r_\text{cap} = 3.5$, $p = 2$.  The propagator includes
+$e^{-W\Delta t/2}$ as a real damping factor, ensuring reflection-free absorption
+of outgoing waves.
+
+\paragraph{CAP convergence.}
+Figure~\ref{fig:cap} shows that extracted resonance widths $\Gamma_n$ are stable
+to within 3\% across $W_0 \in [10, 50]$ and $r_\text{cap} \in [2.5, 3.5]$,
+confirming that the CAP parameters are in the reflection-free plateau regime.
+
+\begin{figure}[h]
+\centering
+\includegraphics[width=0.48\textwidth]{../figures/convergence/cap_strength_scan.png}
+\includegraphics[width=0.48\textwidth]{../figures/convergence/cap_radius_scan.png}
+\caption{CAP convergence: resonance positions $E_n$ and widths $\Gamma_n$ vs.\
+CAP strength (left) and CAP radius (right).  Dashed lines mark the default
+values.  Individual modes are tracked by nearest energy, not by amplitude ranking.}
+\label{fig:cap}
+\end{figure}
+
+\subsection{Frequency extraction via matrix pencil}
+
+Complex resonance frequencies $\omega_n = E_n - i\Gamma_n/2$ are extracted from
+the scalar autocorrelation function
+\begin{equation}
+  C_R(t) = \langle\psi_0|\chi_R|\psi(t)\rangle
+         = \sum_n |a_n|^2 e^{-i\omega_n t},
+\end{equation}
+using the matrix-pencil harmonic inversion method.  The analysis mask $\chi_R$
+matches the billiard geometry (ellipse, stadium, or circle).
+
+%======================================================================
+\section{Local density of states from multi-propagation averaging}
+\label{sec:ldos}
+%======================================================================
+
+\subsection{LDOS formula}
+
+The local density of states at real energy $E$ is computed as a
+Fourier transform of the propagation data:
+\begin{equation}
+  \text{LDOS}(E, \vb{r}) =
+  \left|\sum_k e^{iE t_k}\,\psi_A(\vb{r}, t_k)\right|^2
+  + \left|\sum_k e^{iE t_k}\,\psi_B(\vb{r}, t_k)\right|^2.
+  \label{eq:ldos}
+\end{equation}
+
+This is the modulus squared of a real-frequency Fourier transform.
+No mode separation is attempted: overlapping Lorentzians naturally
+sum, and the result converges to the physical LDOS.
+
+\subsection{Multi-propagation averaging}
+
+A single propagation from initial state $|\psi_0^\alpha\rangle$ gives
+\begin{equation}
+  \text{LDOS}_\alpha(E, \vb{r}) =
+  \sum_n |\phi_n(\vb{r})|^2\,
+  \frac{\Gamma_n/2\pi}{(E-E_n)^2 + (\Gamma_n/2)^2}\,|a_n^\alpha|^2,
+\end{equation}
+where $|a_n^\alpha|^2 = |\langle\phi_n|\psi_0^\alpha\rangle|^2$ is the
+excitation weight for mode $n$.  Different initial states weight
+different modes, so averaging over $M$ propagations:
+\begin{equation}
+  \overline{\text{LDOS}}(E,\vb{r}) = \frac{1}{M}\sum_{\alpha=1}^M
+  \text{LDOS}_\alpha(E,\vb{r})
+\end{equation}
+gives a uniform sampling of all modes.
+
+We use $M = 48$ propagations (8 equally-spaced launch directions
+$\times$ 6 positions: origin + ring at $r = 0.4$), with Gaussian
+wavepackets of width $\sigma = 0.6$ and peak momentum $|\vb{k}| = 3$.
+
+\subsection{$C_{2v}$ symmetry as a quality indicator}
+
+By the Kramers density identity theorem (proven in [symmetry paper ref]):
+each quasi-bound eigenstate density $|\phi_n(\vb{r})|^2$ has exact
+$C_{2v}$ symmetry.  Since the LDOS is a positive linear combination of
+such densities, it inherits $C_{2v}$ symmetry exactly.
+
+We measure the raw (unsymmetrised) LDOS and find $C_{2v}$ errors
+$< 0.05\%$ at all peak energies (Table~\ref{tab:c2v}).  This serves as
+a stringent internal consistency check: no artificial symmetrisation is
+applied.
+
+\begin{table}[h]
+\centering
+\caption{$C_{2v}$ symmetry error of raw LDOS average at the 3 strongest
+peaks (harmonic ellipse, $M = 48$).}
+\label{tab:c2v}
+\begin{tabular}{ccc}
+\toprule
+$E$ & $x$-error & $y$-error \\
+\midrule
+3.969 & 0.0002 & 0.0000 \\
+4.480 & 0.0004 & 0.0000 \\
+4.378 & 0.0003 & 0.0000 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+%======================================================================
+\section{Results}
+\label{sec:results}
+%======================================================================
+
+\subsection{Harmonic ellipse: 2D LDOS maps}
+
+Figure~\ref{fig:ellipse_peaks} shows the LDOS at the 6 strongest
+resonance energies.  Clear spatial structure is visible: nodal patterns
+reflecting the elliptical confinement, with $C_{2v}$-symmetric density
+distributions.
+
+\begin{figure}[h]
+\centering
+\includegraphics[width=\textwidth]{../figures/ldos/harmonic_ellipse/ldos_peak_maps.png}
+\caption{LDOS at the 6 strongest peaks for the harmonic ellipse
+($M = 48$, $C_{2v}$ symmetrised).}
+\label{fig:ellipse_peaks}
+\end{figure}
+
+\subsection{1D line cuts: comparison with STM line scans}
+
+The 2D LDOS can be sliced along symmetry axes to produce
+$\text{LDOS}(E, x)$ at $y = 0$ or $\text{LDOS}(E, y)$ at $x = 0$
+(Fig.~\ref{fig:linecuts}).  These 2D colour maps directly correspond
+to STM line-scan measurements at varying bias voltage.
+
+\begin{figure}[h]
+\centering
+\includegraphics[width=\textwidth]{../figures/ldos/harmonic_ellipse/ldos_1d_linecuts_300.png}
+\caption{1D LDOS line cuts along $y = 0$ (left) and $x = 0$ (right)
+for the harmonic ellipse ($n_E = 300$).  Horizontal features correspond
+to quasi-bound resonances; their spatial extent reflects the classical
+turning curve.}
+\label{fig:linecuts}
+\end{figure}
+
+\subsection{Shape comparison: ellipse vs circle vs stadium}
+
+Figure~\ref{fig:shapes_spectrum} compares the integrated LDOS spectrum
+for three geometries of matched area.  The harmonic ellipse and circle
+show similar peak structure (both are integrable classically), while
+the soft-wall stadium exhibits broader, less structured features---consistent
+with the chaotic classical dynamics of the Bunimovich stadium.
+
+\begin{figure}[h]
+\centering
+\includegraphics[width=\textwidth]{../figures/ldos/comparison/spectrum_three_shapes.png}
+\caption{Integrated LDOS spectrum for three billiard geometries
+(harmonic ellipse, harmonic circle, soft-wall stadium), all with
+matched area $A \approx 7.5$.}
+\label{fig:shapes_spectrum}
+\end{figure}
+
+\begin{figure}[h]
+\centering
+\includegraphics[width=\textwidth]{../figures/ldos/comparison/peaks_three_shapes.png}
+\caption{LDOS spatial maps at peak energies for three geometries.
+Top: ellipse (elliptical nodal patterns).  Middle: circle (concentric
+ring structure).  Bottom: stadium (less regular, reflecting chaotic
+dynamics).}
+\label{fig:shapes_peaks}
+\end{figure}
+
+\begin{figure}[h]
+\centering
+\includegraphics[width=\textwidth]{../figures/ldos/comparison/linecuts_three_shapes.png}
+\caption{1D LDOS line cuts for three geometries.  The ellipse and circle
+show clear discrete resonance structure; the stadium shows broader
+features with less pronounced gaps.}
+\label{fig:shapes_linecuts}
+\end{figure}
+
+\subsection{Soft-wall ellipse: realistic confinement}
+
+For comparison with electrostatic quantum dots, we also compute the
+LDOS with the soft-wall potential Eq.~(\ref{eq:softwall}) applied to
+the ellipse geometry ($a = 2$, $b = 1.2$, same $V_0$, $\lambda$, $\mu$).
+
+\begin{figure}[h]
+\centering
+\includegraphics[width=\textwidth]{../figures/ldos/comparison/harmonic_vs_softwall.png}
+\caption{Harmonic (top) vs soft-wall (bottom) ellipse.  The bathtub
+potential produces sharper confinement and slightly different resonance
+positions, but the overall spatial structure is similar.}
+\label{fig:harmonic_vs_soft}
+\end{figure}
+
+\subsection{Stadium at high energy: searching for scars}
+
+Extending the energy range to $E \in [0.5, 25]$ with multiple initial
+momenta ($|\vb{k}| = 3, 7, 12, 18$), we search for quantum scarring
+in the stadium billiard (Fig.~\ref{fig:scar}).
+
+\begin{figure}[h]
+\centering
+\includegraphics[width=\textwidth]{../figures/ldos_stadium_scar/scar_candidates.png}
+\caption{Scar candidates in the soft-wall stadium at $E > 8$.}
+\label{fig:scar}
+\end{figure}
+
+\begin{figure}[h]
+\centering
+\includegraphics[width=\textwidth]{../figures/ldos_stadium_scar/linecuts.png}
+\caption{1D LDOS line cuts for the stadium over the extended energy
+range $E \in [0.5, 25]$.}
+\label{fig:scar_linecuts}
+\end{figure}
+
+%======================================================================
+\section{Why individual mode extraction fails}
+\label{sec:limits}
+%======================================================================
+
+\subsection{Klein tunnelling and the $\Gamma/\Delta E$ ratio}
+
+For massless Dirac fermions, Klein tunnelling guarantees unit
+transmission at normal incidence through any potential barrier.
+This gives a power-law lower bound on the resonance width:
+\begin{equation}
+  \Gamma \gtrsim \frac{v_F}{k\ell^2},
+\end{equation}
+which, combined with the Weyl-law level spacing
+$\Delta E = 2\pi v_F^2/(EA)$, yields
+\begin{equation}
+  \frac{\Gamma}{\Delta E} \sim \frac{EL}{2\pi v_F} \sim O(1)
+  \quad \text{at the lowest modes.}
+\end{equation}
+
+This ratio is \emph{independent} of the billiard size $L$ and
+potential shape---a fundamental consequence of the Dirac dispersion
+and the absence of exponential evanescent suppression.
+
+\subsection{Fourier resolution limit}
+
+Time-filtered mode reconstruction
+$\phi_n(\vb{r}) \propto \sum_k w(t_k) e^{i\omega_n t_k} \chi_R \psi(\vb{r},t_k)$
+is equivalent to a windowed Fourier transform with resolution
+$\delta E \sim 2\pi\Gamma$ (set by signal lifetime $T_\text{eff} \sim 2/\Gamma$).
+When $\Gamma/\Delta E \sim 1$, neighbouring modes overlap within
+this resolution window and cannot be separated.
+
+\subsection{Overlap metric: definition and caveats}
+
+To quantify the spatial similarity between an extracted mode
+$\phi_\text{method}$ and a reference mode $\phi_\text{ref}$, we use
+the normalised spinor overlap:
+\begin{equation}
+  \mathcal{O} =
+  \frac{|\langle\phi_\text{method}|\chi_R|\phi_\text{ref}\rangle|^2}
+       {\langle\phi_\text{method}|\chi_R|\phi_\text{method}\rangle\;
+        \langle\phi_\text{ref}|\chi_R|\phi_\text{ref}\rangle},
+  \label{eq:overlap}
+\end{equation}
+where
+$\langle a|\chi|b\rangle = \sum_{\vb{r}}
+[a_A^*\chi\, b_A + a_B^*\chi\, b_B]\,\Delta x^2$.
+This quantity equals 1 for identical spatial shapes (up to global
+phase and normalisation) and 0 for orthogonal modes.
+
+\paragraph{Important caveat.}
+In the massless case, there is no independent ``ground truth'' for
+spatial modes.  Our reference $\phi_\text{ref}$ is the time-filtered
+mode, which itself is a Lorentzian-weighted superposition of nearby
+eigenstates when $\Gamma/\Delta E \sim 1$ (Sec.~\ref{sec:limits}).
+Therefore, a high overlap $\mathcal{O} \approx 0.95$ between DMD and
+time filtering demonstrates \emph{inter-method consistency}, not
+absolute accuracy.  The only intrinsic (reference-free) quality
+indicator is $C_{2v}$ symmetry, which is guaranteed by the Kramers
+density theorem for exact eigenstates.
+
+\subsection{Multi-channel methods do not remove the barrier}
+
+We systematically tested five mode-extraction methods on the same
+propagation data (Table~\ref{tab:methods}; see Appendix~\ref{app:methods}
+for method descriptions).
+
+\begin{table}[h]
+\centering
+\caption{Mode extraction comparison ($m = 0$, harmonic ellipse).
+Overlap Eq.~(\ref{eq:overlap}) measured against time-filtered references.
+High overlap indicates inter-method consistency, not absolute accuracy
+(see text).}
+\label{tab:methods}
+\begin{tabular}{lccc}
+\toprule
+Method & Best overlap & Avg overlap & Applicable? \\
+\midrule
+Time filter & (reference) & (reference) & Baseline \\
+FDM & 0.971 & 0.518 & Narrow modes only \\
+DMD ($r=30$) & 0.987 & 0.525 & Narrow modes only \\
+POD + scalar MP & 0.607 & 0.210 & Poor \\
+Block MP (SVD) & 0.349 & --- & Poor \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+All methods give similar results: overlap $> 0.9$ for narrow modes
+($\Gamma/\Delta E < 0.4$) and overlap $\approx 0$ for broad modes
+($\Gamma/\Delta E > 1$).  The multi-channel advantage (spatial
+orthogonality) shifts the threshold slightly but does not remove it.
+
+\subsection{Constrained DMD: pushing extraction to the physical limit}
+
+Since frequencies $(E_n, \Gamma_n)$ are already accurately known from
+matrix pencil, one can fix $\lambda_n = e^{-i\omega_n\Delta t}$ in
+the DMD framework and solve only for spatial modes (constrained DMD,
+or ``Route~C''; see Appendix~\ref{app:methods}).  This combines the
+frequency accuracy of the matrix pencil with the full-space spatial
+information of the SVD, and outperforms all other methods tested
+(Table~\ref{tab:fixedpole}).
+
+\begin{table}[h]
+\centering
+\caption{Fixed-pole reconstruction ($m = 0$). Route~C achieves
+overlap $\approx 1$ on narrow modes.  Tikhonov regularisation and
+Laplacian smoothing have no effect (Routes A/B/B+Lap are identical
+to bare least squares to 4 digits), confirming the bottleneck is
+physical signal content, not numerical conditioning ($\kappa \approx 5$).}
+\label{tab:fixedpole}
+\begin{tabular}{lcccccc}
+\toprule
+Method & $E$=3.97 & $E$=4.45 & $E$=3.52 & $E$=2.41 & $E$=3.06 & Avg \\
+ & $\Gamma$=0.18 & 0.17 & 0.29 & 0.60 & 0.38 & \\
+\midrule
+Bare LS / Route A/B  & 0.921 & 0.814 & 0.685 & 0.001 & 0.003 & 0.485 \\
+\textbf{Route C} ($r$=40) & \textbf{1.000} & \textbf{1.000} & \textbf{0.718} & 0.002 & 0.004 & \textbf{0.545} \\
+DMD ($r$=30)     & 0.987 & 0.921 & 0.716 & 0.002 & 0.006 & 0.527 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{A physical limit on time-domain mode extraction}
+
+The convergence of all algorithms---including Route C---to the same
+extractability boundary demands an explanation beyond numerical
+limitations.
+
+\paragraph{The argument.}
+To separate two modes from time-domain data, one must observe their
+beat frequency $|E_n - E_m|$ over at least one full period
+$T_\text{beat} = 2\pi / |E_n - E_m|$.  But the signal decays as
+$e^{-\Gamma t/2}$, so the signal amplitude at $t = T_\text{beat}$
+is suppressed by $e^{-\pi\Gamma/\Delta E}$.  When
+$\Gamma/\Delta E \gtrsim 1$, this factor falls below any useful
+threshold, and the two modes become indistinguishable from their
+time-domain signatures.
+
+This is a limitation of \emph{time-domain observables}, not of the
+states themselves.  The quasi-bound states exist as well-defined poles
+of the scattering matrix regardless of their overlap.  In principle,
+direct diagonalisation of a non-Hermitian Hamiltonian (with explicit
+open boundaries) could resolve them.  However, for truly open systems
+this requires either:
+
+\begin{itemize}
+  \item \emph{CAP-based $H_\text{eff}$}: produces discrete complex
+        eigenvalues, but the eigenstates are CAP-parameter-dependent
+        and non-orthogonal when resonances overlap.
+  \item \emph{Exact open boundaries}: the spectrum is continuous
+        (no discrete eigenstates); poles must be found by analytic
+        continuation, which is numerically equivalent in difficulty
+        to the time-domain approach.
+  \item \emph{Green's function at complex energy}: well-defined but
+        gives the response function (LDOS), not individual eigenstates.
+\end{itemize}
+
+In practice, for the geometries studied here, time-domain propagation
+with matrix-pencil pole extraction and constrained DMD mode
+reconstruction represents the most practical and general approach.
+
+\paragraph{Contrast with Schr\"odinger billiards.}
+For non-relativistic particles, the tunnelling rate decays
+\emph{exponentially} with barrier width:
+$\Gamma \propto e^{-2\kappa d}$, making $\Gamma/\Delta E$
+exponentially small.  Individual mode extraction is then
+straightforward.  The qualitative difference---power-law vs.\
+exponential suppression of $\Gamma$---is a direct consequence of
+the linear Dirac dispersion and the Klein paradox.
+
+\subsection{LDOS bypasses the problem}
+
+The LDOS does not attempt mode separation.  It computes the total
+spectral weight at each energy and position, with overlapping
+Lorentzians summing naturally:
+\begin{equation}
+  \text{LDOS}(E, \vb{r}) =
+  \sum_n |\phi_n(\vb{r})|^2\,
+  \frac{\Gamma_n / 2\pi}{(E - E_n)^2 + (\Gamma_n/2)^2}.
+\end{equation}
+Each contribution $|\phi_n(\vb{r})|^2$ has exact $C_{2v}$ symmetry
+(Kramers density theorem), so the sum inherits it---regardless of
+whether individual modes can be resolved.  The LDOS is therefore
+a well-defined, robust, and experimentally measurable quantity
+even in the strongly overlapping regime where individual mode
+extraction fails.
+
+%======================================================================
+\section{Discussion}
+\label{sec:discussion}
+%======================================================================
+
+The results of this work lead to a conceptual distinction that is
+worth stating explicitly:
+
+\paragraph{Eigenstate language vs.\ response language.}
+For closed or nearly closed quantum systems, the natural theoretical
+objects are eigenstates $\phi_n(\vb{r})$, and the LDOS is derived from
+them by summation.  For open systems in the overlapping-resonance
+regime, this hierarchy inverts: the LDOS (a response function) is the
+more fundamental and robust object, while individual eigenstates
+become ill-defined as observables---not because they do not exist as
+mathematical solutions, but because they cannot be reliably extracted
+from any finite-time measurement.
+
+This is not a limitation of our numerical method.  It reflects the
+physics of Klein tunnelling: the absence of exponential evanescent
+suppression means that resonance lifetimes $\tau_n = 2/\Gamma_n$ are
+comparable to the inverse level spacing $1/\Delta E$, so neighbouring
+resonances are temporally indistinguishable within their own lifetimes.
+
+\paragraph{Experimental relevance.}
+STM measures $dI/dV \propto \text{LDOS}(E, \vb{r})$, which is
+precisely the quantity our method computes.  The 2D spatial maps
+and 1D line cuts presented here are therefore direct theoretical
+predictions for scanning tunnelling spectroscopy of graphene quantum
+dots, without requiring the intermediate step of eigenstate
+identification.
+
+\paragraph{Adding mass restores mode extractability.}
+For systems with a gap (e.g.\ graphene on hBN, $m \neq 0$), the
+evanescent barrier restores exponential confinement and
+$\Gamma/\Delta E \ll 1$.  In this regime, our pipeline---identical
+code, same propagation and extraction---successfully reconstructs
+individual modes with overlap $> 0.99$ (Appendix~\ref{app:methods}).
+This validates the method and confirms that the failure in the
+massless case is physical, not numerical.
+
+\paragraph{Comparison with Schr\"odinger billiards.}
+Benchmark calculations for the same geometries with the Schr\"odinger
+equation show sharply resolved resonances, extractable eigenstates,
+and staircase-like 1D LDOS---the familiar picture of quantum billiards.
+The contrast with the massless Dirac case, where peaks are broad and
+overlapping, directly illustrates the role of the relativistic
+dispersion and Klein tunnelling in reshaping the spectral landscape.
+
+%======================================================================
+\section{Conclusion}
+\label{sec:conclusion}
+%======================================================================
+
+In geometrically open Dirac cavities, single-mode reconstruction
+and local spectral reconstruction are fundamentally different in
+robustness.  The former fails when $\Gamma/\Delta E \gtrsim 1$
+(the generic massless case due to Klein tunnelling); the latter
+remains stable and converges with multi-propagation averaging.
+
+We have presented a time-domain workflow---propagation, harmonic
+inversion, multi-direction LDOS averaging---that directly produces
+STM-relevant spatial maps for massless Dirac billiards of arbitrary
+geometry.  The method requires no effective Hamiltonian, no eigenstate
+identification, and no assumption about the resonance structure.
+
+For the specific case of graphene quantum dots, the LDOS maps
+provide testable predictions: the energy-resolved spatial patterns,
+the shape dependence (integrable ellipse vs.\ chaotic stadium), and
+the characteristic broadening due to Klein tunnelling.  Comparison
+with Schr\"odinger benchmarks quantifies the uniquely relativistic
+character of the spectral landscape.
+
+The conceptual takeaway extends beyond the specific system:
+\emph{for open quantum systems in the overlapping-resonance regime,
+the experimentally natural object is not the eigenstate but the
+local spectral response}.
+
+%======================================================================
+\appendix
+\section{Mode extraction methods}
+\label{app:methods}
+%======================================================================
+
+We tested five methods for extracting spatial modes from propagation
+snapshots $\psi(\vb{r}, t_k)$, $k = 0, \ldots, N_s-1$.  All methods
+share the same input data; they differ in how they use frequency
+and spatial information.
+
+\subsection{Time filtering (TF)}
+
+The simplest approach: filter at a known complex frequency
+$\omega_n = E_n - i\Gamma_n/2$ obtained from matrix pencil:
+\begin{equation}
+  \phi_n^\text{TF}(\vb{r}) = \sum_k w(t_k)\, e^{+i\omega_n^* t_k}\,
+  \chi_R(\vb{r})\,\psi(\vb{r}, t_k),
+\end{equation}
+where $w(t)$ is a Hann window.  The exponential $e^{+\Gamma t/2}$
+compensates signal decay, reweighting late snapshots.
+
+\emph{Limitation}: this is a per-spatial-point Fourier filter with
+bandwidth $\sim\Gamma$.  When $\Gamma/\Delta E \sim 1$, neighbouring
+modes leak into the filter window.
+
+\subsection{Filter Diagonalisation Method (FDM)}
+
+Builds energy-windowed probes
+$\Phi_j(\vb{r}) = \sum_k e^{iE_j t_k}\,\chi_R\,\psi(\vb{r},t_k)$
+at $P$ probe energies, then solves a generalised eigenvalue problem:
+\begin{equation}
+  A\,\vb{c} = z\,B\,\vb{c},\qquad
+  B_{jk} = \langle\Phi_j|\Phi_k\rangle\Delta x^2,\quad
+  A_{jk} = \langle\Phi_j|\tilde\Phi_k\rangle\Delta x^2,
+\end{equation}
+where $\tilde\Phi_k$ uses time-shifted snapshots.
+SVD regularisation of $B$ (truncate $\sigma < \varepsilon\,\sigma_\text{max}$)
+is critical; best parameters: $\varepsilon = 10^{-4}$, $P = 15$,
+MP-guided probe energies.
+
+\emph{Advantage}: uses spatial inner products, so modes with
+different spatial structure are orthogonal in $B$.
+\emph{Result}: frequencies match MP to $<6\%$ ($m=1$); spatial overlap
+with TF $>0.99$ ($m=1$), $\sim 0.5$ ($m=0$).
+
+\subsection{Dynamic Mode Decomposition (DMD)}
+
+Operates directly on the full-space snapshot matrix
+$X = [\psi(t_0) | \cdots | \psi(t_{N-1})]$ of dimension $D \times N$
+($D = 2 n_y n_x = 131\,072$):
+\begin{enumerate}
+  \item $X_0 = X_{:,0:N-2}$, $X_1 = X_{:,1:N-1}$.
+  \item SVD: $X_0 = U\Sigma V^\dagger$, truncate to rank~$r$.
+  \item $\tilde{A} = U_r^\dagger X_1 V_r \Sigma_r^{-1}$ \quad ($r\times r$).
+  \item Eigendecompose: $\tilde{A}\vb{w} = \lambda\vb{w}$,
+        $\omega = i\ln\lambda/\Delta t$.
+  \item Exact DMD modes: $\Phi = X_1 V_r \Sigma_r^{-1} W$.
+\end{enumerate}
+
+\emph{Advantage}: uses all $D$ spatial dimensions as channels.
+The rank $r$ controls a bias--variance tradeoff analogous to
+regularisation in machine learning.
+\emph{Result}: $m=1$ overlap $>0.999$; $m=0$ similar to FDM
+(avg overlap 0.525 at $r=30$).  DMD poles do not form Kramers pairs,
+indicating extracted modes are Koopman modes (mixtures of
+eigenstates), not individual eigenstates.
+
+\subsection{POD + scalar matrix pencil}
+
+A two-stage hybrid:
+\begin{enumerate}
+  \item POD (SVD of snapshot matrix) $\to$ $r$ spatial basis
+        functions $u_\mu(\vb{r})$ and time coefficients $c_\mu(t)$.
+  \item Scalar matrix pencil on each $c_\mu(t)$ independently
+        $\to$ frequencies.
+  \item Cluster poles across POD components; reconstruct modes
+        as $\phi_n = \sum_\mu w_{n\mu}\, u_\mu$.
+\end{enumerate}
+
+\emph{Advantage}: decouples spatial compression from spectral
+extraction.  \emph{Result}: best overlap 0.61 ($m=0$), worse than
+DMD due to pole fragmentation across POD components.
+
+\subsection{Block matrix pencil}
+
+Records $M$ spatial channels
+$a_\mu(t) = \langle g_\mu|\psi(t)\rangle$ (spatial patches or SVD
+basis), then solves a block Hankel pencil problem for the vector
+signal $\vb{a}(t) = \sum_n \vb{v}_n e^{-i\omega_n t}$.
+
+\emph{Advantage}: channel fingerprints $\vb{v}_n$ can separate modes
+with the same frequency but different spatial structure.
+\emph{Result}: overlap $<0.35$ ($m=0$), limited by the small number
+of channels ($M = 19$--$38$) compared to full-space DMD ($D = 131\,072$).
+
+\subsection{Fixed-pole regularised reconstruction}
+
+A fundamentally different approach: frequencies $\omega_n$ are
+\emph{fixed} from matrix pencil, and only the spatial modes are
+solved for:
+\begin{equation}
+  \min_{\{\phi_n\}} \sum_k \left\|\psi(\cdot, t_k)
+  - \sum_n \phi_n\, e^{-i\omega_n t_k}\right\|^2
+  + \lambda\sum_n \mathcal{R}[\phi_n],
+\end{equation}
+where $\mathcal{R}$ includes Tikhonov regularisation and optional
+Laplacian spatial smoothing.  This can be solved in full space
+(Route~A) or in a POD-reduced space (Route~B, recommended).
+
+\emph{Advantage}: exploits the strong prior of known poles; reduces
+unknowns from $D\times N$ to $r\times N$ (Route~B with POD rank $r$).
+\emph{Status}: under evaluation.
+
+\end{document}

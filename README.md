@@ -25,18 +25,34 @@ This runs the default configuration (massless Dirac, harmonic ellipse,
 
 See [`examples/`](examples/) for more configurations.
 
+## LDOS from a wavepacket frame
+
+[`wavepacket_ldos/`](wavepacket_ldos/) computes the local density of states directly.
+A frame of Gaussian wavepackets, with both band spinors and spread uniformly over a region
+of phase space, resolves the identity.  Propagating every member gives the local return
+amplitude $\mathrm{tr}\,\langle\mathbf r|e^{-iHt/\hbar}|\mathbf r\rangle$, and its windowed
+Fourier transform is the LDOS.  The example there is an anisotropic potential hill in
+graphene, compared with a tight-binding (pybinding) calculation of the same hill.
+
+```bash
+cd wavepacket_ldos
+python run_formp.py
+python plot_formp.py
+```
+
 ## Pipeline
 
 ```
-                     ┌─ snapshots ψ(r,t) ──→ Fourier transform ──→ LDOS
+                     ┌─ snapshots ψ(r,t) ──→ Fourier transform ──→ spectral map
 Propagation ──→     │
                      └─ C_R(t) ──→ Matrix Pencil ──→ poles ω_n ──→ modes φ_n(r)
 ```
 
 1. **Propagation**: Split-operator method for the 2D Dirac equation
    with complex absorbing potential (CAP) at the boundary.
-2. **LDOS**: Real-frequency Fourier transform of snapshots, averaged
-   over multiple propagation directions.
+2. **Spectral map**: Real-frequency Fourier transform of snapshots, averaged
+   over multiple propagation directions.  The LDOS itself is computed in
+   [`wavepacket_ldos/`](wavepacket_ldos/).
 3. **Poles**: Matrix pencil (harmonic inversion) extracts complex
    resonance frequencies from the scalar autocorrelation.
 4. **Modes**: Two methods reconstruct spatial quasi-eigenstates from
@@ -51,7 +67,7 @@ Propagation ──→     │
 
 | File | Description |
 |------|-------------|
-| `ldos.npy` | LDOS(E, r), shape (n_E, ny, nx) |
+| `ldos.npy` | Spectral map \|ψ(r, E)\|², shape (n_E, ny, nx) |
 | `E_values.npy` | Energy grid |
 | `C_R.npy` | Autocorrelation C_R(t), complex |
 | `corr_times.npy` | Time values for C_R |
@@ -77,9 +93,9 @@ when available.  The backend is selected automatically at startup:
 
 Override with `--backend torch_cuda` or `--backend numpy`.
 
-### Vectorised LDOS computation
+### Vectorised spectral transform
 
-The LDOS Fourier transform uses matrix multiplication instead of
+The snapshot Fourier transform uses matrix multiplication instead of
 Python loops:
 
 ```
@@ -95,7 +111,7 @@ precision (relative error < 3×10⁻¹⁵).  Speedup: ~30× on CPU.
 | Operation | CPU (8 cores) | GPU (A100) |
 |-----------|:------------:|:----------:|
 | Single propagation (15k steps) | 120 s | 6 s |
-| LDOS computation (300 energies) | 0.6 s | — |
+| Spectral map (300 energies) | 0.6 s | — |
 | Matrix pencil pole extraction | 0.1 s | — |
 | Fixed-pole SVD mode extraction | 40 s | — |
 | **Full pipeline (8 directions)** | **~17 min** | **~1 min** |
@@ -106,6 +122,7 @@ precision (relative error < 3×10⁻¹⁵).  Speedup: ~30× on CPU.
 ├── run.py                  pipeline driver (quick start entry point)
 ├── spectral.py             matrix pencil, LDOS, time filtering
 ├── potentials_2d.py        confining potentials and analysis masks
+├── wavepacket_ldos/        LDOS from a frame of Gaussian wavepackets
 ├── accel/                  GPU/CPU backend abstraction
 │   ├── __init__.py          auto-detection (CUDA > MPS > CPU)
 │   ├── backend.py           abstract interface
@@ -167,6 +184,7 @@ Available potentials: `harmonic_ellipse`, `harmonic_circle`,
 Natural units: ℏ = v_F = 1. All energies and momenta are dimensionless.
 For graphene quantum dots: the default parameters (a=2, k_harm=3)
 correspond to a ~50 nm dot with E ~ 63 meV, Γ ~ 16 meV.
+`wavepacket_ldos/` works in nm, meV and fs.
 
 ## License
 

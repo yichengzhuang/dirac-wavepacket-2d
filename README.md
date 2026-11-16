@@ -25,7 +25,7 @@ This runs the default configuration (massless Dirac, harmonic ellipse,
 
 See [`examples/`](examples/) for more configurations.
 
-## LDOS from a wavepacket frame
+## LDOS and resonances from wavepackets
 
 [`wavepacket_ldos/`](wavepacket_ldos/) computes the local density of states directly.
 A frame of Gaussian wavepackets, with both band spinors and spread uniformly over a region
@@ -34,10 +34,19 @@ amplitude $\mathrm{tr}\,\langle\mathbf r|e^{-iHt/\hbar}|\mathbf r\rangle$, and i
 Fourier transform is the LDOS.  The example there is an anisotropic potential hill in
 graphene, compared with a tight-binding (pybinding) calculation of the same hill.
 
+The same directory finds the resonances of the hill from two wavepacket launches.  After the
+direct part has left, each wavefunction is a sum of decaying resonances.  One matrix pencil over
+all pixels gives their complex energies $E_n - i\Gamma_n/2$, and a fit with the poles held fixed
+gives each resonance's part of the two wavefunctions.  Since $H^T = \sigma_y H \sigma_y$, the left
+eigenvectors follow from the right ones, so the two launches fix the projector onto every
+resonance and its local weight in the LDOS.
+
 ```bash
 cd wavepacket_ldos
 python run_formp.py
 python plot_formp.py
+python run_resonances.py
+python plot_resonances.py
 ```
 
 ## Pipeline
@@ -122,7 +131,7 @@ precision (relative error < 3×10⁻¹⁵).  Speedup: ~30× on CPU.
 ├── run.py                  pipeline driver (quick start entry point)
 ├── spectral.py             matrix pencil, LDOS, time filtering
 ├── potentials_2d.py        confining potentials and analysis masks
-├── wavepacket_ldos/        LDOS from a frame of Gaussian wavepackets
+├── wavepacket_ldos/        LDOS and resonances from wavepacket dynamics
 ├── accel/                  GPU/CPU backend abstraction
 │   ├── __init__.py          auto-detection (CUDA > MPS > CPU)
 │   ├── backend.py           abstract interface

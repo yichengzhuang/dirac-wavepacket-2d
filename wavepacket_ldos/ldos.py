@@ -56,7 +56,7 @@ def wavepackets(X, Y, points, s, sigma):
 
 
 def return_signal(prop, a, b, probes, n_steps, every):
-    """sum over the batch of psi(r, t) psi(r, 0)^* at the probe pixels, recorded every `every` steps."""
+    """Sum over the batch of psi(r, t) psi(r, 0)^* at the probe pixels, every `every` steps."""
     iy, ix = probes
     a0 = a[:, iy, ix].conj()
     b0 = b[:, iy, ix].conj()
@@ -87,7 +87,7 @@ def frame_signal(prop, X, Y, points, w, sigma, probes, n_steps, every, batch=256
 
 
 def ldos(t, C, E, width, kernel="lorentz"):
-    """LDOS(r, E) in 1 / (nm^2 meV) from C(r, t) of shape (time, probe), uniform t (trapezoidal rule).
+    """LDOS(r, E) in 1 / (nm^2 meV) from C(r, t) of shape (time, probe), uniform in t.
 
     kernel = "lorentz": -Im G(r, r; E + i width) / pi.
     kernel = "gauss":   Gaussian broadening of standard deviation `width`.
